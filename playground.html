@@ -1,0 +1,694 @@
+<!-- playground.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d15">
+  <title>Prompt Studio — AI Prompt Optimizer</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d15;
+      --panel: #121925;
+      --text: #f2f5fa;
+      --muted: #9caac0;
+      --accent: #c5f88a;
+      --purple: #b6a0ff;
+      --border: #ffffff12;
+      --radius: 20px;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at 80% 0, #b6a0ff0d, transparent 40%), var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+    :focus-visible { outline: 2px solid var(--purple); outline-offset: 4px; }
+    ::selection { background: var(--purple); color: #171026; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin-top: 0; }
+    p { color: var(--muted); }
+    .container { width: min(1280px, calc(100% - 40px)); margin-inline: auto; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .skip { position: fixed; top: 10px; left: 10px; z-index: 100; background: var(--accent); color: var(--bg); padding: 10px 15px; transform: translateY(-170%); }
+    .skip:focus { transform: translateY(0); }
+    header { background: #090d15cc; border-bottom: 1px solid var(--border); backdrop-filter: blur(20px); }
+    .topbar { min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { font-size: 23px; font-weight: 750; letter-spacing: -1px; }
+    .brand span { color: var(--purple); }
+    nav { display: flex; align-items: center; gap: 8px; }
+    nav a { color: var(--muted); font-size: 12px; padding: 9px 14px; border-radius: 9px; }
+    nav a:hover { color: var(--text); }
+    nav a[aria-current] { background: #b6a0ff10; color: var(--purple); }
+
+    main { padding-block: 42px 50px; }
+    .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 25px; margin-bottom: 28px; }
+    .eyebrow { color: var(--purple); text-transform: uppercase; letter-spacing: 2px; font-size: 10px; margin-bottom: 10px; }
+    h1 { font-size: clamp(32px, 4vw, 44px); line-height: 1.15; letter-spacing: -1.8px; margin-bottom: 12px; }
+    .page-heading p { font-size: 13px; margin-bottom: 0; max-width: 650px; }
+    .privacy-badge { padding: 8px 12px; border: 1px solid #b6a0ff30; background: #b6a0ff09; border-radius: 99px; color: var(--purple); white-space: nowrap; font-size: 10px; }
+
+    .workspace { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .panel { min-width: 0; background: #121925db; border: 1px solid var(--border); border-radius: var(--radius); backdrop-filter: blur(18px); }
+    .library { padding: 22px; position: sticky; top: 22px; }
+    .library-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    h2 { font-size: 16px; letter-spacing: -.4px; margin-bottom: 0; }
+    .count { padding: 3px 8px; border-radius: 6px; background: #ffffff06; color: var(--muted); font-size: 10px; }
+    input, textarea, select {
+      width: 100%;
+      background: #090e17;
+      color: var(--text);
+      border: 1px solid #ffffff16;
+      border-radius: 9px;
+      padding: 11px 13px;
+      font-size: 12px;
+      transition: border-color .25s;
+    }
+    input:hover, textarea:hover, select:hover { border-color: #ffffff30; }
+    input::placeholder, textarea::placeholder { color: #728198; }
+    textarea { resize: vertical; line-height: 1.8; }
+    label { display: block; font-size: 11px; color: #c0cadd; margin-bottom: 8px; }
+    .search { margin-bottom: 15px; }
+    .template-list { display: grid; gap: 9px; max-height: 530px; overflow-y: auto; padding: 3px; margin: -3px; }
+    .template-card { position: relative; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff02; transition: border-color .25s, background .25s; }
+    .template-card.selected { border-color: #b6a0ff55; background: #b6a0ff08; }
+    .template-load { width: 100%; display: block; text-align: left; background: none; border: 0; color: var(--text); padding: 0; }
+    .template-title { display: block; font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
+    .template-preview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 10px; margin-top: 7px; line-height: 1.7; }
+    .template-bottom { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 12px; }
+    .template-tag { color: var(--purple); font-size: 9px; }
+    .delete-button { border: 0; background: transparent; color: #a0adbf; padding: 4px 0 4px 10px; font-size: 9px; }
+    .delete-button:hover { color: #ff9aab; }
+    .empty-library { padding: 20px 0; font-size: 12px; }
+    .library-note { border-top: 1px solid var(--border); padding-top: 18px; margin: 20px 0 0; font-size: 10px; line-height: 1.8; }
+
+    .editor { padding: 26px; }
+    .editor-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 25px; }
+    .editor-heading p { font-size: 11px; margin: 5px 0 0; }
+    .step { display: inline-grid; place-items: center; width: 23px; height: 23px; background: #b6a0ff13; color: var(--purple); border-radius: 7px; font-size: 10px; margin-right: 8px; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 12px; padding: 10px 15px; border: 1px solid var(--border); border-radius: 9px; background: #ffffff04; color: var(--text); font-size: 11px; font-weight: 550; transition: transform .25s var(--ease), border-color .25s, background .25s; }
+    .button:hover { transform: translateY(-2px); border-color: #ffffff35; }
+    .button.primary { background: var(--purple); border-color: var(--purple); color: #211435; }
+    .button.primary:hover { background: #c7b6ff; }
+    .button.green { background: var(--accent); border-color: var(--accent); color: #17230c; }
+    .field { margin-bottom: 20px; }
+    .label-row { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 8px; }
+    .label-row label { margin-bottom: 0; }
+    .counter { color: var(--muted); font-size: 9px; }
+    #raw-prompt { min-height: 190px; }
+    .options-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .editor-actions { display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+    .shortcut { color: var(--muted); font-size: 10px; }
+    kbd { background: #ffffff06; border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; font-size: 9px; }
+
+    .output-section { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 25px; }
+    .output-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 14px; }
+    .output-heading h2 { font-size: 15px; }
+    #optimized-prompt { min-height: 330px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; background: #0c111c; }
+    .save-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 20px; }
+    .save-row .button { min-height: 41px; }
+    .output-note { font-size: 10px; margin-top: 14px; margin-bottom: 0; }
+    .notification {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+      padding: 12px 15px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      background: #ffffff03;
+      font-size: 11px;
+    }
+    .notification[data-kind="success"] { color: var(--accent); border-color: #c5f88a25; }
+    .notification[data-kind="error"] { color: #ffb3bf; border-color: #ff9aab30; }
+    #undo-delete { border: 0; background: none; color: var(--purple); text-decoration: underline; text-underline-offset: 3px; font-size: 11px; padding: 0; }
+    footer { display: flex; justify-content: space-between; gap: 15px; flex-wrap: wrap; margin-top: 30px; font-size: 10px; color: var(--muted); }
+    footer a { color: var(--purple); }
+    .generated { animation: generated .5s var(--ease); }
+    @keyframes generated { from { opacity: .4; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    @media (max-width: 1000px) {
+      .workspace { grid-template-columns: 220px minmax(0, 1fr); gap: 16px; }
+      .library { padding: 18px; }
+      .editor { padding: 22px; }
+      .options-grid { grid-template-columns: 1fr; gap: 0; }
+      .privacy-badge { display: none; }
+    }
+    @media (max-width: 720px) {
+      .container { width: calc(100% - 28px); }
+      .topbar { flex-wrap: wrap; justify-content: center; gap: 12px; padding-block: 16px; }
+      .brand { width: 100%; text-align: center; }
+      nav a { padding: 7px 12px; font-size: 11px; }
+      main { padding-top: 30px; }
+      .workspace { grid-template-columns: 1fr; }
+      .library { position: static; order: 2; }
+      .template-list { max-height: 430px; }
+      .editor { order: 1; padding: 19px; }
+      .editor-heading { align-items: start; }
+      .save-row { grid-template-columns: 1fr; }
+      .save-row .button { width: 100%; }
+      #optimized-prompt { min-height: 360px; }
+      .shortcut { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to prompt workspace</a>
+  <header>
+    <div class="container topbar">
+      <a class="brand" href="index.html">prompt studio<span>.</span></a>
+      <nav aria-label="Ecosystem navigation">
+        <a href="index.html">Portfolio</a>
+        <a href="dashboard.html">Dashboard</a>
+        <a href="playground.html" aria-current="page">Playground</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow mono">A little clarity goes a long way</div>
+        <h1>Better prompts. Better starting points.</h1>
+        <p>A local, rule-based prompt builder. Turn rough instructions into a structured brief, then save the versions worth keeping.</p>
+      </div>
+      <span class="privacy-badge mono">◈ Works in your browser</span>
+    </div>
+
+    <div class="workspace">
+      <aside class="panel library" aria-labelledby="library-title">
+        <div class="library-heading"><h2 id="library-title">Your library</h2><span class="count mono" id="template-count">0</span></div>
+        <label for="template-search">Find a template</label>
+        <input class="search" id="template-search" type="search" placeholder="Search saved prompts…" maxlength="100">
+        <div class="template-list" id="template-list"></div>
+        <p class="library-note" id="storage-note">Templates stay in this browser using local storage. They are not uploaded or synchronized between devices.</p>
+      </aside>
+
+      <section class="panel editor" aria-labelledby="editor-title">
+        <div class="editor-heading">
+          <div><h2 id="editor-title"><span class="step mono">01</span>Your starting point</h2><p>Give your idea a little more structure.</p></div>
+          <button class="button" id="new-prompt" type="button">＋ New prompt</button>
+        </div>
+
+        <form id="optimizer-form">
+          <div class="field">
+            <div class="label-row">
+              <label for="raw-prompt">What do you want the AI to do?</label>
+              <span class="counter mono" id="raw-counter">0 / 6,000</span>
+            </div>
+            <textarea id="raw-prompt" required maxlength="6000" placeholder="Example: Help me plan a portfolio website that showcases my coding projects and feels clean, modern, and easy to navigate."></textarea>
+          </div>
+
+          <div class="options-grid">
+            <div class="field">
+              <label for="task-type">Task type</label>
+              <select id="task-type">
+                <option value="general">General problem solving</option>
+                <option value="writing">Writing & communication</option>
+                <option value="coding">Coding & development</option>
+                <option value="learning">Learning & explanation</option>
+                <option value="research">Research & analysis</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="tone">Tone</label>
+              <select id="tone">
+                <option value="clear">Clear and direct</option>
+                <option value="friendly">Friendly and approachable</option>
+                <option value="professional">Professional and precise</option>
+                <option value="creative">Creative and engaging</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="output-format">Output format</label>
+              <select id="output-format">
+                <option value="structured">Structured response</option>
+                <option value="steps">Step-by-step guide</option>
+                <option value="bullets">Concise bullet points</option>
+                <option value="table">Comparison table</option>
+                <option value="code">Code with usage notes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <button class="button primary" type="submit">✦ Optimize prompt</button>
+            <span class="shortcut">Shortcut: <kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>Enter</kbd></span>
+          </div>
+        </form>
+
+        <div class="output-section">
+          <div class="output-heading">
+            <h2><span class="step mono">02</span>Refine & keep</h2>
+            <button class="button" id="copy-output" type="button" disabled>Copy prompt ↗</button>
+          </div>
+          <label for="optimized-prompt">Optimized prompt — fully editable</label>
+          <textarea id="optimized-prompt" maxlength="14000" spellcheck="false" placeholder="Your structured prompt will appear here. Edit any part before copying or saving it."></textarea>
+
+          <div class="save-row">
+            <div>
+              <label for="template-name">Template name</label>
+              <input id="template-name" type="text" maxlength="80" placeholder="e.g. Portfolio project brief">
+            </div>
+            <button class="button green" id="save-template" type="button" disabled>Save template ＋</button>
+          </div>
+          <p class="output-note">This tool structures your instructions locally. It does not call an AI model or generate the AI’s answer.</p>
+        </div>
+
+        <div class="notification" id="notification">
+          <span id="status-message" role="status" aria-live="polite">Ready when you are. Start with a task, or load a template.</span>
+          <button id="undo-delete" type="button" hidden>Undo delete</button>
+        </div>
+        <noscript><p>Enable JavaScript to optimize prompts and manage your local template library.</p></noscript>
+      </section>
+    </div>
+
+    <footer><span>Prompt Studio · A Dev portfolio experiment</span><a href="dashboard.html">Explore Orbit Dashboard ↗</a></footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+      const $ = selector => document.querySelector(selector);
+      const STORAGE_KEY = "dev.prompt-studio.templates.v1";
+      const LIMIT = 30;
+      const taskLabels = {
+        general: "General",
+        writing: "Writing",
+        coding: "Coding",
+        learning: "Learning",
+        research: "Research"
+      };
+      const roles = {
+        general: "Act as a thoughtful problem-solving assistant.",
+        writing: "Act as an experienced editor and communication specialist.",
+        coding: "Act as a careful software developer who prioritizes correctness and maintainability.",
+        learning: "Act as a patient tutor who explains ideas with clear examples.",
+        research: "Act as a careful research analyst who distinguishes evidence from inference."
+      };
+      const taskInstructions = {
+        general: [
+          "Identify the goal, relevant constraints, and practical next steps.",
+          "Explain important trade-offs where they affect the outcome."
+        ],
+        writing: [
+          "Adapt the writing to the stated audience, purpose, and context.",
+          "Use specific language, coherent structure, and natural transitions.",
+          "Preserve the intended meaning and avoid unsupported claims."
+        ],
+        coding: [
+          "Respect the specified language, environment, and dependencies.",
+          "Produce a complete solution for the requested scope.",
+          "Handle relevant edge cases and explain how to run or verify the result.",
+          "Do not invent APIs or claim to have executed code unless you actually have."
+        ],
+        learning: [
+          "Begin with the prerequisite concepts needed to understand the topic.",
+          "Use a concrete example, then explain how it connects to the broader idea.",
+          "Highlight likely misconceptions and include a short practice exercise."
+        ],
+        research: [
+          "Separate verified facts, assumptions, and open questions.",
+          "Use reliable sources when available and provide verifiable citations.",
+          "If current information cannot be verified, state that limitation.",
+          "Never invent sources, quotations, or statistics."
+        ]
+      };
+      const tones = {
+        clear: "Clear and direct. Prefer plain language and concrete statements.",
+        friendly: "Friendly and approachable, while remaining accurate and useful.",
+        professional: "Professional and precise, with concise explanations.",
+        creative: "Creative and engaging, without sacrificing clarity or accuracy."
+      };
+      const formats = {
+        structured: "Use short headings and logically ordered sections. Start with the main result.",
+        steps: "Use a numbered, step-by-step guide with an actionable outcome for each step.",
+        bullets: "Use concise bullet points. Group related ideas and prioritize the most useful points.",
+        table: "Use a Markdown comparison table with meaningful column labels, followed by a brief interpretation.",
+        code: "Provide code in fenced code blocks, followed by concise setup, usage, and verification notes."
+      };
+
+      const raw = $("#raw-prompt");
+      const output = $("#optimized-prompt");
+      let currentId = null;
+      let deletedTemplate = null;
+      let storageAvailable = true;
+      let storageWarning = "";
+      let templates;
+
+      function id() {
+        return globalThis.crypto?.randomUUID?.() ??
+          `template-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
+
+      function buildPrompt(rawText, task, tone, format) {
+        return [
+          "ROLE",
+          roles[task],
+          "",
+          "TASK",
+          rawText.trim(),
+          "",
+          "APPROACH",
+          ...taskInstructions[task].map(item => "- " + item),
+          "- If essential information is missing, ask focused clarifying questions. Otherwise, state reasonable assumptions and proceed.",
+          "",
+          "TONE",
+          tones[tone],
+          "",
+          "OUTPUT FORMAT",
+          formats[format],
+          "",
+          "QUALITY CHECK",
+          "- Address the task directly and respect every explicit constraint.",
+          "- Keep claims accurate and label uncertainty where it matters.",
+          "- Remove repetition and make the result useful without unnecessary filler."
+        ].join("\n");
+      }
+
+      function starterTemplates() {
+        return [
+          {
+            id: "starter-project",
+            name: "Portfolio project brief",
+            raw: "Help me plan a responsive personal portfolio that showcases three coding projects. Include the page structure, useful interactions, and an achievable implementation plan.",
+            task: "general", tone: "clear", format: "steps"
+          },
+          {
+            id: "starter-code",
+            name: "Thoughtful code review",
+            raw: "Review the code I provide for correctness, accessibility, security, and maintainability. Prioritize concrete issues and suggest focused improvements.",
+            task: "coding", tone: "professional", format: "structured"
+          },
+          {
+            id: "starter-learning",
+            name: "Learn a difficult concept",
+            raw: "Explain the concept I provide to a beginner. Use an everyday analogy, a worked example, and a short exercise to check understanding.",
+            task: "learning", tone: "friendly", format: "steps"
+          }
+        ].map(template => ({
+          ...template,
+          output: buildPrompt(template.raw, template.task, template.tone, template.format),
+          updatedAt: new Date().toISOString()
+        }));
+      }
+
+      function validTemplate(template) {
+        return template &&
+          typeof template === "object" &&
+          typeof template.id === "string" && template.id.length > 0 && template.id.length <= 150 &&
+          typeof template.name === "string" && template.name.trim().length > 0 && template.name.length <= 80 &&
+          typeof template.raw === "string" && template.raw.length <= 6000 &&
+          typeof template.output === "string" && template.output.trim().length > 0 && template.output.length <= 14000 &&
+          Object.hasOwn(roles, template.task) &&
+          Object.hasOwn(tones, template.tone) &&
+          Object.hasOwn(formats, template.format);
+      }
+
+      function readTemplates() {
+        let stored;
+        try {
+          stored = localStorage.getItem(STORAGE_KEY);
+        } catch {
+          storageAvailable = false;
+          storageWarning = "Browser storage is unavailable. Your changes will last only for this open session.";
+          return starterTemplates();
+        }
+
+        if (stored === null) return starterTemplates();
+
+        try {
+          const parsed = JSON.parse(stored);
+          if (!Array.isArray(parsed)) throw new Error("Invalid library");
+          const unique = new Set();
+          const valid = parsed.filter(template => {
+            if (!validTemplate(template) || unique.has(template.id)) return false;
+            unique.add(template.id);
+            return true;
+          }).slice(0, LIMIT);
+
+          if (valid.length !== parsed.length) {
+            storageWarning = "Some invalid saved entries were ignored. Valid templates are still available.";
+          }
+          return valid;
+        } catch {
+          storageWarning = "The saved library could not be read. Starter templates are loaded; saving will replace the unreadable data.";
+          return starterTemplates();
+        }
+      }
+
+      function persist() {
+        if (!storageAvailable) return false;
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+          return true;
+        } catch {
+          storageAvailable = false;
+          $("#storage-note").textContent = "Storage is unavailable or full. Current changes are kept only in this open session. Copy important prompts before closing.";
+          return false;
+        }
+      }
+
+      function notify(message, kind = "") {
+        $("#status-message").textContent = message;
+        $("#notification").dataset.kind = kind;
+      }
+
+      function controls() {
+        $("#raw-counter").textContent = `${raw.value.length.toLocaleString()} / 6,000`;
+        const hasOutput = Boolean(output.value.trim());
+        $("#copy-output").disabled = !hasOutput;
+        $("#save-template").disabled = !hasOutput;
+        $("#save-template").textContent = currentId ? "Update template ✓" : "Save template ＋";
+      }
+
+      function renderLibrary() {
+        const query = $("#template-search").value.trim().toLowerCase();
+        const matches = templates.filter(template =>
+          [template.name, template.raw, template.output].some(value => value.toLowerCase().includes(query))
+        );
+        $("#template-count").textContent = String(templates.length).padStart(2, "0");
+        const fragment = document.createDocumentFragment();
+
+        if (!matches.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-library";
+          empty.textContent = query ? "No matching templates. Try a different search." : "Your library is empty. Save a prompt to start a collection.";
+          fragment.append(empty);
+        }
+
+        matches.forEach(template => {
+          const card = document.createElement("article");
+          card.className = "template-card" + (template.id === currentId ? " selected" : "");
+          const load = document.createElement("button");
+          load.type = "button";
+          load.className = "template-load";
+          load.setAttribute("aria-label", `Load ${template.name}`);
+          const title = document.createElement("span");
+          title.className = "template-title";
+          title.textContent = template.name;
+          const preview = document.createElement("span");
+          preview.className = "template-preview";
+          preview.textContent = template.raw || template.output;
+          load.append(title, preview);
+          load.addEventListener("click", () => loadTemplate(template.id));
+
+          const bottom = document.createElement("div");
+          bottom.className = "template-bottom";
+          const tag = document.createElement("span");
+          tag.className = "template-tag mono";
+          tag.textContent = taskLabels[template.task];
+          const remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "delete-button";
+          remove.textContent = "Delete";
+          remove.setAttribute("aria-label", `Delete ${template.name}`);
+          remove.addEventListener("click", () => deleteTemplate(template.id));
+          bottom.append(tag, remove);
+          card.append(load, bottom);
+          fragment.append(card);
+        });
+
+        $("#template-list").replaceChildren(fragment);
+      }
+
+      function loadTemplate(templateId) {
+        const template = templates.find(item => item.id === templateId);
+        if (!template) return;
+        currentId = template.id;
+        raw.value = template.raw;
+        output.value = template.output;
+        $("#task-type").value = template.task;
+        $("#tone").value = template.tone;
+        $("#output-format").value = template.format;
+        $("#template-name").value = template.name;
+        raw.setCustomValidity("");
+        controls();
+        renderLibrary();
+        notify(`Loaded “${template.name}”. Edit it and choose Update template to keep your changes.`, "success");
+        raw.focus({ preventScroll: true });
+      }
+
+      function deleteTemplate(templateId) {
+        const index = templates.findIndex(template => template.id === templateId);
+        if (index < 0) return;
+        deletedTemplate = { template: templates[index], index };
+        templates.splice(index, 1);
+        if (currentId === templateId) currentId = null;
+        const saved = persist();
+        controls();
+        renderLibrary();
+        $("#undo-delete").hidden = false;
+        notify(`Deleted “${deletedTemplate.template.name}”.${saved ? "" : " This change is session-only."}`);
+        $("#undo-delete").focus({ preventScroll: true });
+      }
+
+      $("#undo-delete").addEventListener("click", () => {
+        if (!deletedTemplate) return;
+        if (templates.length >= LIMIT) {
+          notify("The library is full. Delete another template before restoring this one.", "error");
+          return;
+        }
+        if (!templates.some(template => template.id === deletedTemplate.template.id)) {
+          templates.splice(Math.min(deletedTemplate.index, templates.length), 0, deletedTemplate.template);
+        }
+        const saved = persist();
+        deletedTemplate = null;
+        $("#undo-delete").hidden = true;
+        renderLibrary();
+        notify(saved ? "Template restored." : "Template restored for this session.", "success");
+        $("#template-search").focus({ preventScroll: true });
+      });
+
+      $("#optimizer-form").addEventListener("submit", event => {
+        event.preventDefault();
+        raw.setCustomValidity(raw.value.trim() ? "" : "Enter a task or idea to optimize.");
+        if (!event.currentTarget.reportValidity()) return;
+
+        output.value = buildPrompt(
+          raw.value,
+          $("#task-type").value,
+          $("#tone").value,
+          $("#output-format").value
+        );
+        output.classList.remove("generated");
+        void output.offsetWidth;
+        output.classList.add("generated");
+        controls();
+        notify("Your structured prompt is ready. Refine it, copy it, or save it to your library.", "success");
+      });
+
+      raw.addEventListener("input", () => { raw.setCustomValidity(""); controls(); });
+      output.addEventListener("input", controls);
+      $("#template-search").addEventListener("input", renderLibrary);
+
+      $("#save-template").addEventListener("click", () => {
+        const optimized = output.value.trim();
+        if (!optimized) {
+          notify("Generate or write a prompt before saving.", "error");
+          output.focus();
+          return;
+        }
+
+        const existing = templates.findIndex(template => template.id === currentId);
+        if (existing < 0 && templates.length >= LIMIT) {
+          notify(`Your library holds up to ${LIMIT} templates. Delete one before saving another.`, "error");
+          return;
+        }
+
+        const name = $("#template-name").value.trim() ||
+          raw.value.trim().replace(/\s+/g, " ").slice(0, 55) ||
+          "Untitled prompt";
+
+        const template = {
+          id: existing >= 0 ? currentId : id(),
+          name,
+          raw: raw.value,
+          output: optimized,
+          task: $("#task-type").value,
+          tone: $("#tone").value,
+          format: $("#output-format").value,
+          updatedAt: new Date().toISOString()
+        };
+
+        if (existing >= 0) templates.splice(existing, 1);
+        templates.unshift(template);
+        currentId = template.id;
+        $("#template-name").value = name;
+        const saved = persist();
+        controls();
+        renderLibrary();
+        notify(
+          saved
+            ? `“${name}” ${existing >= 0 ? "updated" : "saved"} in this browser.`
+            : `“${name}” kept for this session. Browser storage is unavailable; copy it before closing.`,
+          saved ? "success" : "error"
+        );
+      });
+
+      $("#copy-output").addEventListener("click", async () => {
+        if (!output.value.trim()) return;
+        try {
+          if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+          await navigator.clipboard.writeText(output.value);
+          notify("Prompt copied to your clipboard.", "success");
+        } catch {
+          output.focus();
+          output.select();
+          notify("Clipboard access is unavailable. The prompt is selected; press Ctrl+C or ⌘C to copy.");
+        }
+      });
+
+      $("#new-prompt").addEventListener("click", () => {
+        currentId = null;
+        $("#optimizer-form").reset();
+        output.value = "";
+        $("#template-name").value = "";
+        raw.setCustomValidity("");
+        controls();
+        renderLibrary();
+        notify("Fresh workspace ready. Saved templates remain in your library.");
+        raw.focus();
+      });
+
+      document.addEventListener("keydown", event => {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          event.preventDefault();
+          $("#optimizer-form").requestSubmit();
+        }
+      });
+
+      addEventListener("storage", event => {
+        if (event.key !== STORAGE_KEY && event.key !== null) return;
+        templates = readTemplates();
+        if (currentId && !templates.some(template => template.id === currentId)) currentId = null;
+        controls();
+        renderLibrary();
+        notify("The saved library changed in another tab. Your current editor contents were preserved.");
+      });
+
+      templates = readTemplates();
+      controls();
+      renderLibrary();
+      if (storageWarning) {
+        notify(storageWarning, "error");
+        if (!storageAvailable) $("#storage-note").textContent = storageWarning;
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,548 @@
+<!-- dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090d15">
+  <title>Orbit — Crypto & Weather Dashboard</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090d15;
+      --panel: #121925;
+      --text: #f2f5fa;
+      --muted: #9caac0;
+      --accent: #c5f88a;
+      --purple: #b6a0ff;
+      --blue: #80ccff;
+      --border: #ffffff12;
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(ellipse at 0 0, #578a7510, transparent 45%), var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    button { font: inherit; cursor: pointer; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin-top: 0; }
+    p { color: var(--muted); }
+    .container { width: min(1220px, calc(100% - 40px)); margin-inline: auto; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .skip { position: fixed; z-index: 100; top: 10px; left: 10px; padding: 10px 15px; background: var(--accent); color: var(--bg); transform: translateY(-160%); }
+    .skip:focus { transform: translateY(0); }
+
+    header { border-bottom: 1px solid var(--border); background: #090d15cc; backdrop-filter: blur(20px); }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 82px; }
+    .brand { font-size: 23px; font-weight: 750; letter-spacing: -1px; }
+    .brand span { color: var(--accent); }
+    nav { display: flex; align-items: center; gap: 8px; }
+    nav a { font-size: 12px; color: var(--muted); padding: 9px 14px; border-radius: 9px; }
+    nav a:hover { color: var(--text); }
+    nav a[aria-current] { color: var(--accent); background: #c5f88a0b; }
+
+    main { padding-block: 45px 65px; }
+    .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 25px; margin-bottom: 28px; }
+    .eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 10px; }
+    h1 { font-size: clamp(32px, 4vw, 44px); letter-spacing: -1.8px; line-height: 1.15; margin-bottom: 10px; }
+    .page-heading p { margin-bottom: 0; font-size: 13px; }
+    .controls { display: flex; gap: 9px; flex-wrap: wrap; }
+    .button { padding: 10px 15px; background: #ffffff04; border: 1px solid var(--border); color: var(--text); border-radius: 10px; font-size: 11px; transition: border-color .25s, transform .25s; }
+    .button:hover { border-color: #c5f88a55; transform: translateY(-2px); }
+    .button[aria-pressed="true"] { background: #c5f88a0d; border-color: #c5f88a40; color: var(--accent); }
+
+    .notice { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 13px 17px; border: 1px solid var(--border); border-radius: 12px; background: #ffffff03; margin-bottom: 24px; color: var(--muted); font-size: 11px; }
+    .notice strong { color: var(--accent); font-weight: 500; }
+    .notice time { white-space: nowrap; }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .metric { min-width: 0; padding: 23px; border: 1px solid var(--border); border-radius: var(--radius); background: linear-gradient(135deg, #ffffff05, transparent), var(--panel); }
+    .metric-label { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; margin-bottom: 17px; }
+    .metric-icon { height: 28px; width: 28px; display: grid; place-items: center; border-radius: 8px; background: #c5f88a12; color: var(--accent); font-size: 15px; }
+    .metric:nth-child(2) .metric-icon { background: #b6a0ff12; color: var(--purple); }
+    .metric:nth-child(3) .metric-icon { background: #80ccff12; color: var(--blue); }
+    .metric-value { font-size: clamp(25px, 3vw, 33px); line-height: 1.2; letter-spacing: -1px; font-weight: 600; }
+    .metric-sub { font-size: 10px; color: var(--muted); margin-top: 10px; }
+    .positive { color: var(--accent); }
+    .negative { color: #ff9aab; }
+
+    .charts { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; }
+    .panel { min-width: 0; border: 1px solid var(--border); background: #121925d9; border-radius: var(--radius); overflow: hidden; backdrop-filter: blur(18px); }
+    .panel-heading { padding: 24px 25px 0; display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+    h2 { font-size: 17px; letter-spacing: -.4px; margin-bottom: 5px; }
+    .panel-heading p { font-size: 10px; margin-bottom: 0; }
+    .badge { padding: 5px 9px; border-radius: 99px; font-size: 9px; color: var(--accent); background: #c5f88a0b; border: 1px solid #c5f88a24; white-space: nowrap; }
+    .coin-tabs { display: flex; gap: 8px; padding: 20px 25px 0; }
+    .coin-tab { padding: 7px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 10px; color: var(--muted); background: transparent; }
+    .coin-tab[aria-pressed="true"] { background: #c5f88a15; color: var(--accent); border-color: #c5f88a40; }
+    .chart-area { position: relative; height: 290px; margin: 20px 20px 15px; }
+    .weather-area { height: 335px; }
+    canvas { width: 100% !important; height: 100% !important; }
+    .panel-footer { padding: 15px 25px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; gap: 14px; color: var(--muted); font-size: 10px; flex-wrap: wrap; }
+    .legend { display: flex; flex-wrap: wrap; gap: 18px; padding: 22px 25px 0; color: var(--muted); font-size: 10px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; }
+    .legend i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--purple); }
+    .legend span:nth-child(2) i { background: var(--blue); }
+
+    .bottom-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 22px; margin-top: 22px; }
+    .table-wrap { overflow-x: auto; padding: 10px 25px 20px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+    th { font-size: 9px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+    td, th { padding: 13px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td:first-child, th:first-child { padding-left: 0; }
+    td:last-child, th:last-child { text-align: right; padding-right: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .asset-name { display: flex; align-items: center; gap: 10px; }
+    .asset-symbol { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 50%; background: #ffffff08; color: var(--accent); font-size: 12px; }
+    .asset-name small { color: var(--muted); margin-left: 5px; font-size: 10px; }
+    .conditions { padding: 24px; }
+    .weather-hero { display: flex; align-items: center; justify-content: space-between; margin-block: 12px 24px; }
+    .weather-hero strong { font-size: 42px; letter-spacing: -2px; }
+    .sun { font-size: 62px; line-height: 1; color: #f8d791; filter: drop-shadow(0 0 20px #f8d79120); }
+    .condition-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .condition-grid div { padding: 13px 10px; border: 1px solid var(--border); border-radius: 10px; }
+    .condition-grid small { display: block; color: var(--muted); font-size: 9px; margin-bottom: 7px; }
+    .condition-grid strong { font-size: 12px; font-weight: 500; }
+    .chart-fallback { height: 100%; overflow: auto; padding: 8px; font-size: 12px; }
+    .chart-fallback p { font-size: 11px; }
+    .status { color: var(--muted); font-size: 11px; min-height: 18px; margin-top: 18px; }
+    footer { padding-top: 30px; display: flex; justify-content: space-between; gap: 15px; flex-wrap: wrap; color: var(--muted); font-size: 10px; }
+    footer a { color: var(--accent); }
+
+    @media (max-width: 1000px) {
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .charts, .bottom-grid { grid-template-columns: 1fr; }
+      .weather-area { height: 290px; }
+    }
+    @media (max-width: 600px) {
+      .container { width: calc(100% - 28px); }
+      .topbar { flex-wrap: wrap; justify-content: center; padding-block: 16px; gap: 12px; }
+      .brand { width: 100%; text-align: center; }
+      nav { justify-content: center; }
+      nav a { padding: 7px 12px; font-size: 11px; }
+      main { padding-top: 30px; }
+      .page-heading { display: block; }
+      .controls { margin-top: 22px; }
+      .notice { align-items: start; flex-direction: column; }
+      .metrics { gap: 12px; }
+      .metric { padding: 17px; }
+      .metric-value { font-size: 26px; }
+      .metric-label { font-size: 10px; }
+      .metric-icon { width: 24px; height: 24px; }
+      .panel-heading { padding: 20px 18px 0; }
+      .coin-tabs, .legend { padding-inline: 18px; }
+      .chart-area { height: 260px; margin-inline: 10px; }
+      .panel-footer { padding-inline: 18px; }
+      .table-wrap { padding-inline: 18px; }
+      .asset-name small { display: none; }
+      .conditions { padding: 20px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to dashboard</a>
+  <header>
+    <div class="container topbar">
+      <a class="brand" href="index.html">orbit<span>.</span></a>
+      <nav aria-label="Ecosystem navigation">
+        <a href="index.html">Portfolio</a>
+        <a href="dashboard.html" aria-current="page">Dashboard</a>
+        <a href="playground.html">Playground ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow mono">Your world, at a glance</div>
+        <h1>A little perspective.</h1>
+        <p>Market movement and changing skies, in one thoughtful workspace.</p>
+      </div>
+      <div class="controls">
+        <button class="button" id="live-toggle" type="button" aria-pressed="true">● Live simulation: on</button>
+        <button class="button" id="refresh" type="button">Advance sample ↻</button>
+      </div>
+    </div>
+
+    <div class="notice">
+      <span><strong>SIMULATED DATA</strong> · Illustrative prices and conditions. Updates every 5 seconds.</span>
+      <time id="updated">Initializing…</time>
+    </div>
+
+    <section class="metrics" aria-label="Current simulated metrics">
+      <article class="metric">
+        <div class="metric-label"><span id="selected-label">Bitcoin / BTC</span><span class="metric-icon" aria-hidden="true">↗</span></div>
+        <div class="metric-value" id="coin-price">—</div>
+        <div class="metric-sub" id="coin-change">Across visible samples</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Visible range <span class="metric-icon" aria-hidden="true">≋</span></div>
+        <div class="metric-value" id="coin-range">—</div>
+        <div class="metric-sub">High minus low · selected asset</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Temperature <span class="metric-icon" aria-hidden="true">☀</span></div>
+        <div class="metric-value" id="temperature">—</div>
+        <div class="metric-sub">Sample location · New Delhi</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Humidity <span class="metric-icon" aria-hidden="true">◉</span></div>
+        <div class="metric-value" id="humidity">—</div>
+        <div class="metric-sub">Simulated relative humidity</div>
+      </article>
+    </section>
+
+    <div class="charts">
+      <section class="panel" aria-labelledby="market-title">
+        <div class="panel-heading">
+          <div><h2 id="market-title">Market pulse</h2><p>USD price across the latest 16 simulated samples.</p></div>
+          <span class="badge mono">MOCK MARKET</span>
+        </div>
+        <div class="coin-tabs" role="group" aria-label="Choose cryptocurrency">
+          <button class="coin-tab" type="button" data-coin="BTC" aria-pressed="true">BTC</button>
+          <button class="coin-tab" type="button" data-coin="ETH" aria-pressed="false">ETH</button>
+          <button class="coin-tab" type="button" data-coin="SOL" aria-pressed="false">SOL</button>
+        </div>
+        <div class="chart-area">
+          <canvas id="crypto-chart" role="img" aria-label="Simulated cryptocurrency price trend. Current prices are also available in the watchlist table."></canvas>
+          <div id="crypto-fallback" class="chart-fallback" hidden></div>
+        </div>
+        <div class="panel-footer"><span id="market-summary">Loading samples…</span><span class="mono">16 SAMPLES / USD</span></div>
+      </section>
+
+      <section class="panel" aria-labelledby="weather-title">
+        <div class="panel-heading">
+          <div><h2 id="weather-title">Weather rhythm</h2><p>Sample conditions · New Delhi</p></div>
+          <span class="badge mono">MOCK WEATHER</span>
+        </div>
+        <div class="legend"><span><i></i> Temperature °C</span><span><i></i> Humidity %</span></div>
+        <div class="chart-area weather-area">
+          <canvas id="weather-chart" role="img" aria-label="Simulated temperature and humidity trend. Latest values are shown in the condition cards."></canvas>
+          <div id="weather-fallback" class="chart-fallback" hidden></div>
+        </div>
+        <div class="panel-footer"><span id="weather-summary">Loading conditions…</span><span class="mono">DEMO SERIES</span></div>
+      </section>
+    </div>
+
+    <div class="bottom-grid">
+      <section class="panel" aria-labelledby="watchlist-title">
+        <div class="panel-heading"><div><h2 id="watchlist-title">The watchlist</h2><p>A small sample market. No API keys required.</p></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Asset</th><th scope="col">Price</th><th scope="col">Window change</th></tr></thead>
+            <tbody id="watchlist"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel conditions" aria-labelledby="conditions-title">
+        <div class="eyebrow mono">Sample conditions</div>
+        <h2 id="conditions-title">A brighter outlook.</h2>
+        <div class="weather-hero"><div><strong id="weather-large">—</strong><p style="margin:0;font-size:12px">Partly sunny · simulated</p></div><span class="sun" aria-hidden="true">☀</span></div>
+        <div class="condition-grid">
+          <div><small>Wind</small><strong>12 km/h</strong></div>
+          <div><small>Visibility</small><strong>10 km</strong></div>
+          <div><small>Sample city</small><strong>New Delhi</strong></div>
+        </div>
+      </section>
+    </div>
+
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+    <noscript><p>Enable JavaScript to run the simulated data dashboard.</p></noscript>
+    <footer><span>Orbit · A Dev portfolio experiment</span><a href="playground.html">Next stop: Prompt Studio ↗</a></footer>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      "use strict";
+      const $ = selector => document.querySelector(selector);
+      const $$ = selector => [...document.querySelectorAll(selector)];
+      const motion = matchMedia("(prefers-reduced-motion: reduce)");
+      const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+      const compactCurrency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+      const assets = {
+        BTC: {
+          name: "Bitcoin", symbol: "₿", volatility: 95,
+          values: [65850, 66080, 65930, 66420, 66210, 66680, 66520, 66940, 66730, 67100, 66980, 67320, 67180, 67510, 67340, 67420]
+        },
+        ETH: {
+          name: "Ethereum", symbol: "Ξ", volatility: 9,
+          values: [3315, 3334, 3322, 3358, 3341, 3370, 3362, 3385, 3369, 3401, 3388, 3414, 3402, 3420, 3411, 3428]
+        },
+        SOL: {
+          name: "Solana", symbol: "◎", volatility: .65,
+          values: [142.4, 143.1, 142.8, 144.2, 143.7, 145.4, 144.8, 146.1, 145.7, 147.3, 146.6, 148.2, 147.5, 148.8, 148.1, 149.2]
+        }
+      };
+      const temperatures = [24.3, 24.6, 24.8, 25.2, 25.5, 25.3, 25.8, 26.1, 26.4, 26.2, 26.6, 26.9, 27.1, 27.3, 27.2, 27.4];
+      const humidities = [61, 60, 60, 59, 58, 59, 57, 56, 56, 57, 55, 54, 54, 53, 54, 53];
+      const labels = Array.from({ length: 16 }, (_, index) => String(index + 1).padStart(2, "0"));
+      let selected = "BTC";
+      let live = true;
+      let sample = 16;
+      let seed = 840;
+      let cryptoChart;
+      let weatherChart;
+
+      function random() {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        return seed / 4294967296;
+      }
+      function last(array) { return array[array.length - 1]; }
+      function change(values) { return (last(values) - values[0]) / values[0] * 100; }
+      function percentage(value) { return `${value >= 0 ? "+" : ""}${value.toFixed(2)}%`; }
+      function append(array, value) { array.push(value); array.shift(); }
+
+      function renderWatchlist() {
+        const rows = document.createDocumentFragment();
+        Object.entries(assets).forEach(([ticker, asset]) => {
+          const row = document.createElement("tr");
+          const nameCell = document.createElement("td");
+          const name = document.createElement("div");
+          name.className = "asset-name";
+          const icon = document.createElement("span");
+          icon.className = "asset-symbol";
+          icon.textContent = asset.symbol;
+          icon.setAttribute("aria-hidden", "true");
+          const title = document.createElement("span");
+          title.textContent = asset.name;
+          const small = document.createElement("small");
+          small.textContent = ticker;
+          title.append(small);
+          name.append(icon, title);
+          nameCell.append(name);
+
+          const price = document.createElement("td");
+          price.textContent = currency.format(last(asset.values));
+          const delta = document.createElement("td");
+          const value = change(asset.values);
+          delta.textContent = percentage(value);
+          delta.className = value >= 0 ? "positive" : "negative";
+          row.append(nameCell, price, delta);
+          rows.append(row);
+        });
+        $("#watchlist").replaceChildren(rows);
+      }
+
+      function fallbackTable(container, headings, rows) {
+        const message = document.createElement("p");
+        message.textContent = "Chart library unavailable. Sample data is shown below.";
+        const table = document.createElement("table");
+        const head = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        headings.forEach(heading => {
+          const th = document.createElement("th");
+          th.scope = "col";
+          th.textContent = heading;
+          headRow.append(th);
+        });
+        head.append(headRow);
+        const body = document.createElement("tbody");
+        rows.forEach(values => {
+          const row = document.createElement("tr");
+          values.forEach(value => {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          });
+          body.append(row);
+        });
+        table.append(head, body);
+        container.replaceChildren(message, table);
+        container.hidden = false;
+      }
+
+      function render() {
+        const asset = assets[selected];
+        const values = asset.values;
+        const delta = change(values);
+        $("#selected-label").textContent = `${asset.name} / ${selected}`;
+        $("#coin-price").textContent = currency.format(last(values));
+        $("#coin-range").textContent = currency.format(Math.max(...values) - Math.min(...values));
+        $("#coin-change").textContent = `${percentage(delta)} across visible samples`;
+        $("#coin-change").className = `metric-sub ${delta >= 0 ? "positive" : "negative"}`;
+        $("#temperature").textContent = `${last(temperatures).toFixed(1)}°C`;
+        $("#weather-large").textContent = `${last(temperatures).toFixed(1)}°`;
+        $("#humidity").textContent = `${last(humidities).toFixed(0)}%`;
+        $("#market-summary").textContent = `${asset.name}: ${currency.format(values[0])} → ${currency.format(last(values))}`;
+        $("#weather-summary").textContent = `${last(temperatures).toFixed(1)}°C · ${last(humidities).toFixed(0)}% humidity`;
+        const now = new Date();
+        $("#updated").dateTime = now.toISOString();
+        $("#updated").textContent = `Updated ${now.toLocaleTimeString()}`;
+        renderWatchlist();
+
+        if (cryptoChart && weatherChart) {
+          cryptoChart.data.labels = [...labels];
+          cryptoChart.data.datasets[0].label = `${asset.name} · USD`;
+          cryptoChart.data.datasets[0].data = [...values];
+          weatherChart.data.labels = [...labels];
+          weatherChart.data.datasets[0].data = [...temperatures];
+          weatherChart.data.datasets[1].data = [...humidities];
+          cryptoChart.update("none");
+          weatherChart.update("none");
+        } else {
+          $("#crypto-chart").hidden = true;
+          $("#weather-chart").hidden = true;
+          fallbackTable($("#crypto-fallback"), ["Sample", selected], labels.map((label, i) => [label, currency.format(values[i])]));
+          fallbackTable($("#weather-fallback"), ["Sample", "°C", "Humidity"], labels.map((label, i) => [label, temperatures[i].toFixed(1), `${humidities[i]}%`]));
+        }
+      }
+
+      function createCharts() {
+        if (typeof Chart === "undefined") return;
+
+        Chart.defaults.color = "#91a0b6";
+        Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+        Chart.defaults.font.size = 10;
+        Chart.defaults.borderColor = "#ffffff0a";
+
+        const tooltip = {
+          backgroundColor: "#1b2534",
+          titleColor: "#f2f5fa",
+          bodyColor: "#c4cfde",
+          borderColor: "#ffffff15",
+          borderWidth: 1,
+          padding: 12,
+          displayColors: false
+        };
+        const common = {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: motion.matches ? false : { duration: 500 },
+          interaction: { mode: "index", intersect: false },
+          plugins: { legend: { display: false }, tooltip },
+          scales: {
+            x: { grid: { display: false }, border: { display: false }, ticks: { maxTicksLimit: 8, maxRotation: 0 } },
+            y: { border: { display: false }, grid: { color: "#ffffff08" }, ticks: { padding: 8 } }
+          }
+        };
+
+        try {
+          cryptoChart = new Chart($("#crypto-chart"), {
+            type: "line",
+            data: {
+              labels: [...labels],
+              datasets: [{
+                label: "Bitcoin · USD",
+                data: [...assets.BTC.values],
+                borderColor: "#c5f88a",
+                borderWidth: 2.5,
+                backgroundColor: context => {
+                  const chart = context.chart;
+                  if (!chart.chartArea) return "#c5f88a15";
+                  const gradient = chart.ctx.createLinearGradient(0, chart.chartArea.top, 0, chart.chartArea.bottom);
+                  gradient.addColorStop(0, "#c5f88a30");
+                  gradient.addColorStop(1, "#c5f88a00");
+                  return gradient;
+                },
+                fill: true,
+                tension: .35,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: "#c5f88a"
+              }]
+            },
+            options: {
+              ...common,
+              plugins: {
+                ...common.plugins,
+                tooltip: { ...tooltip, callbacks: { label: context => currency.format(context.parsed.y) } }
+              },
+              scales: {
+                ...common.scales,
+                y: { ...common.scales.y, ticks: { callback: value => compactCurrency.format(value) } }
+              }
+            }
+          });
+
+          weatherChart = new Chart($("#weather-chart"), {
+            type: "line",
+            data: {
+              labels: [...labels],
+              datasets: [
+                { label: "Temperature °C", data: [...temperatures], yAxisID: "y", borderColor: "#b6a0ff", backgroundColor: "#b6a0ff10", borderWidth: 2.5, tension: .4, fill: true, pointRadius: 0, pointHoverRadius: 4 },
+                { label: "Humidity %", data: [...humidities], yAxisID: "y1", borderColor: "#80ccff", borderWidth: 2, borderDash: [4, 5], tension: .4, pointRadius: 0, pointHoverRadius: 4 }
+              ]
+            },
+            options: {
+              ...common,
+              plugins: { ...common.plugins, tooltip: { ...tooltip, displayColors: true } },
+              scales: {
+                ...common.scales,
+                y: { ...common.scales.y, suggestedMin: 20, suggestedMax: 32, ticks: { callback: value => `${value}°` } },
+                y1: { position: "right", min: 30, max: 80, grid: { drawOnChartArea: false }, border: { display: false }, ticks: { callback: value => `${value}%`, maxTicksLimit: 5 } }
+              }
+            }
+          });
+        } catch {
+          cryptoChart?.destroy();
+          weatherChart?.destroy();
+          cryptoChart = undefined;
+          weatherChart = undefined;
+          $("#status").textContent = "Charts could not initialize. The data tables remain available.";
+        }
+      }
+
+      function tick() {
+        sample++;
+        append(labels, String(sample).padStart(2, "0"));
+        Object.values(assets).forEach(asset => {
+          const next = Math.max(1, last(asset.values) + (random() - .48) * asset.volatility * 2);
+          append(asset.values, Number(next.toFixed(2)));
+        });
+        append(temperatures, Number(Math.min(35, Math.max(18, last(temperatures) + (random() - .5) * .6)).toFixed(1)));
+        append(humidities, Math.round(Math.min(75, Math.max(35, last(humidities) + (random() - .5) * 4))));
+        render();
+      }
+
+      $$(".coin-tab").forEach(button => {
+        button.addEventListener("click", () => {
+          selected = button.dataset.coin;
+          $$(".coin-tab").forEach(tab => tab.setAttribute("aria-pressed", String(tab === button)));
+          render();
+          $("#status").textContent = `Showing ${assets[selected].name} simulated price history.`;
+        });
+      });
+
+      $("#live-toggle").addEventListener("click", () => {
+        live = !live;
+        $("#live-toggle").setAttribute("aria-pressed", String(live));
+        $("#live-toggle").textContent = live ? "● Live simulation: on" : "Ⅱ Live simulation: paused";
+        $("#status").textContent = live ? "Simulation resumed." : "Simulation paused. You can still advance one sample manually.";
+      });
+
+      $("#refresh").addEventListener("click", () => {
+        tick();
+        $("#status").textContent = `Advanced to simulated sample ${sample}.`;
+      });
+
+      createCharts();
+      render();
+
+      motion.addEventListener("change", () => {
+        [cryptoChart, weatherChart].forEach(chart => {
+          if (chart) {
+            chart.options.animation = motion.matches ? false : { duration: 500 };
+            chart.update("none");
+          }
+        });
+      });
+
+      setInterval(() => {
+        if (live && !document.hidden) tick();
+      }, 5000);
+    });
+  </script>
+</body>
+</html>
